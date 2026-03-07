@@ -36,26 +36,41 @@
     @apply font-display font-bold tracking-tighter uppercase;
     filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.05));
   }
+
+
   .glass-text {
-    @apply relative transition-all duration-300 inline-block;
+    @apply relative transition-all duration-500 inline-block select-none;
     color: rgba(255, 255, 255, 0.05);
-    -webkit-text-stroke: 2.5px rgba(255, 255, 255, 0.8);
+    -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.6);
+
     text-shadow: 
-      8px 8px 16px rgba(0, 0, 0, 0.15),
-      -4px -4px 0px rgba(255, 255, 255, 1),
-      0 0 35px currentColor,
-      0 0 70px currentColor,
-      2px 0 8px #FF85A2,
-      -2px 0 8px #70D6FF,
-      0 2px 8px #BE95FF,
-      0 -2px 8px #FFD972;
-    filter: contrast(1.2) brightness(1.2) drop-shadow(0 10px 15px rgba(0,0,0,0.1));
-    animation: liquid 4s ease-in-out infinite, shimmer-glow 3s ease-in-out infinite;
+      4px 4px 12px rgba(0, 0, 0, 0.3),
+      -2px -2px 0px rgba(255, 255, 255, 0.8),
+      0 0 20px currentColor,
+      2px 0 6px #FF85A2,
+      -2px 0 6px #70D6FF,
+      0 2px 6px #BE95FF,
+      0 -2px 6px #FFD972;
+    filter: contrast(1.2) brightness(1.2);
+    animation: liquid 4s ease-in-out infinite;
+    will-change: transform, filter; /* Optimasi GPU */
   }
+
   .glass-text:hover {
-    transform: scale(1.1) rotate(2deg);
-    filter: contrast(1.4) brightness(1.2);
+    @apply scale-110 rotate-3;
+    filter: contrast(1.5) brightness(1.4) drop-shadow(0 0 20px currentColor);
+    -webkit-text-stroke: 2px rgba(255, 255, 255, 1);
   }
+}
+
+@keyframes liquid {
+  0%, 100% { transform: translateY(0) rotate(var(--tw-rotate, 0deg)); }
+  50% { transform: translateY(-10px) rotate(calc(var(--tw-rotate, 0deg) + 4deg)); }
+}
+
+body {
+  overflow-x: hidden;
+  width: 100vw;
 }
 
 @keyframes float {

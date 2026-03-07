@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { 
   LayoutDashboard, 
   CheckSquare, 
   Timer, 
@@ -40,7 +54,13 @@ import {
   Frown,
   Meh,
   Laugh,
-  Angry
+  Angry,
+  BarChart3,
+  Layers,
+  Users,
+  Flame,
+  Star,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -92,9 +112,26 @@ interface QuizQuestion {
 }
 
 const CANDY_SONGS: Song[] = [
-  { title: "Ethereal Piano", artist: "Soft Keys", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3" },
-  { title: "Midnight Keys", artist: "Dreamy Piano", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3" },
-  { title: "Morning Dew", artist: "Nature Piano", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" },
+  { 
+    title: "Lofi Study Session", 
+    artist: "Chill Mind", 
+    url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" 
+  },
+  { 
+    title: "Dreamy Focus", 
+    artist: "Aesthetic Beats", 
+    url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" 
+  },
+  { 
+    title: "Midnight Piano", 
+    artist: "Soft Keys", 
+    url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" 
+  },
+  { 
+    title: "Morning Coffee", 
+    artist: "Sunrise Vibe", 
+    url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" 
+  }
 ];
 
 const ParallaxBackground = () => {
@@ -163,6 +200,7 @@ const StylizedFooter = () => {
     <footer className="mt-20 pb-12 pt-20 border-t border-slate-100/50 relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex flex-col items-center justify-center gap-8">
+
           {/* Stylized Logo Text */}
           <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 footer-text-stylized text-5xl md:text-9xl p-10">
             <span className="text-candy-pink glass-text -rotate-6 animate-liquid">K</span>
@@ -193,7 +231,7 @@ const StylizedFooter = () => {
   );
 };
 
-const CandyCard = ({ children, className = "", title, color = "bg-white" }: { children: React.ReactNode, className?: string, title?: string, color?: string }) => (
+const CandyCard = ({ children, className = "", title, color = "bg-white" }: { children: React.ReactNode, className?: string, title?: string, color?: string, key?: React.Key }) => (
   <div className={`glass-candy rounded-3xl p-6 relative transition-all duration-300 hover:scale-[1.02] ${color} ${className}`}>
     {title && (
       <div className="flex items-center justify-between mb-4">
@@ -217,6 +255,30 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, color = "text-candy-p
   </button>
 );
 
+interface Flashcard {
+  id: string;
+  front: string;
+  back: string;
+  mastered: boolean;
+}
+
+const Logo = ({ className = "w-10 h-10" }: { className?: string }) => (
+  <div className={`relative ${className} flex items-center justify-center bg-candy-yellow rounded-full shadow-md border-2 border-white/40 overflow-hidden`}>
+    <div className="absolute inset-[8%] bg-white rounded-full flex items-center justify-center">
+      <div className="relative w-full h-full flex items-center justify-center">
+        {/* Clock marks */}
+        {[...Array(12)].map((_, i) => (
+          <div key={i} className="absolute w-0.5 h-1.5 bg-slate-200" style={{ transform: `rotate(${i * 30}deg) translateY(-220%)` }} />
+        ))}
+        {/* The 'K' shape */}
+        <div className="absolute w-1.5 h-[60%] bg-candy-pink rounded-full -translate-x-1.5 shadow-sm" />
+        <div className="absolute w-1.5 h-[40%] bg-slate-800 rounded-full rotate-45 translate-x-1 -translate-y-1.5 shadow-sm" />
+        <div className="absolute w-1.5 h-[40%] bg-slate-800 rounded-full -rotate-45 translate-x-1 translate-y-1.5 shadow-sm" />
+      </div>
+    </div>
+  </div>
+);
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -226,13 +288,22 @@ export default function App() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>(() => JSON.parse(localStorage.getItem('kelarin_schedules') || '[]'));
   const [notes, setNotes] = useState<Note[]>(() => JSON.parse(localStorage.getItem('kelarin_notes') || '[]'));
   const [waterIntake, setWaterIntake] = useState<number>(() => Number(localStorage.getItem('kelarin_water') || '0'));
+  
+  // Gamification State
+  const [candyPoints, setCandyPoints] = useState<number>(() => Number(localStorage.getItem('kelarin_points') || '0'));
+  const [streak, setStreak] = useState<number>(() => Number(localStorage.getItem('kelarin_streak') || '0'));
+  const [level, setLevel] = useState<number>(() => Math.floor(Number(localStorage.getItem('kelarin_points') || '0') / 100) + 1);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>(() => JSON.parse(localStorage.getItem('kelarin_flashcards') || '[]'));
 
   useEffect(() => {
     localStorage.setItem('kelarin_tasks', JSON.stringify(tasks));
     localStorage.setItem('kelarin_schedules', JSON.stringify(schedules));
     localStorage.setItem('kelarin_notes', JSON.stringify(notes));
     localStorage.setItem('kelarin_water', waterIntake.toString());
-  }, [tasks, schedules, notes, waterIntake]);
+    localStorage.setItem('kelarin_points', candyPoints.toString());
+    localStorage.setItem('kelarin_streak', streak.toString());
+    localStorage.setItem('kelarin_flashcards', JSON.stringify(flashcards));
+  }, [tasks, schedules, notes, waterIntake, candyPoints, streak, flashcards]);
 
   // UI State
   const [newTask, setNewTask] = useState('');
@@ -276,6 +347,7 @@ export default function App() {
     };
     setMoodHistory([newEntry, ...moodHistory].slice(0, 10));
     setCurrentMood(mood.label);
+    setCandyPoints(p => p + 5);
   };
   const [quizScore, setQuizScore] = useState(0);
   const [isQuizLoading, setIsQuizLoading] = useState(false);
@@ -287,11 +359,13 @@ export default function App() {
   // Timer & Music State
   const [focusDuration, setFocusDuration] = useState(25 * 60);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [manualMinutes, setManualMinutes] = useState('25');
   const [isActive, setIsActive] = useState(false);
   const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
+
+  // Timer Logic
   useEffect(() => {
     let interval: any = null;
     if (isActive && timeLeft > 0) {
@@ -299,24 +373,37 @@ export default function App() {
     } else if (timeLeft === 0) {
       setIsActive(false);
       clearInterval(interval);
-      if (isPlayingMusic) setIsPlayingMusic(false);
+      // Timer habis, matikan musik juga
+      setIsPlayingMusic(false);
+      // Award points
+      setCandyPoints(p => p + 50);
     }
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, isPlayingMusic]);
+  }, [isActive, timeLeft]);
 
-  useEffect(() => {
-    if (isPlayingMusic && isActive) {
-      audioRef.current?.play().catch(e => console.log("Audio play failed:", e));
-    } else {
-      audioRef.current?.pause();
+// Audio Logic
+useEffect(() => {
+  if (audioRef.current) {
+    audioRef.current.load();
+    if (isPlayingMusic || isActive) {
+      audioRef.current.play().catch(e => console.log("Audio play failed:", e));
     }
-  }, [isPlayingMusic, isActive, currentSongIndex]);
+  }
+}, [currentSongIndex]);
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+useEffect(() => {
+  if (isPlayingMusic || isActive) {
+    audioRef.current?.play().catch(e => console.log("Audio play failed:", e));
+  } else {
+    audioRef.current?.pause();
+  }
+}, [isPlayingMusic, isActive]);
+
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
 
   // Chatbot Logic
   const sendMessage = async () => {
@@ -466,122 +553,228 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-bg-light bg-candy-mesh selection:bg-candy-pink selection:text-white">
+    <div className="h-screen flex flex-col bg-bg-light bg-candy-mesh selection:bg-candy-pink selection:text-white overflow-hidden">
       <ParallaxBackground />
       <audio ref={audioRef} src={CANDY_SONGS[currentSongIndex].url} loop />
       
-      {/* Mobile Header */}
-      <header className="md:hidden flex items-center justify-between p-4 glass-candy sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-candy-pink rounded-lg flex items-center justify-center shadow-md">
-            <Zap size={18} className="text-white fill-current" />
+      {/* Unified Header */}
+      <header className="h-16 flex-shrink-0 z-50 bg-white/40 backdrop-blur-md border-b border-white/40 px-4 md:px-8">
+        <div className="h-full max-w-[1600px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="md:hidden p-2 hover:bg-white/50 rounded-xl transition-colors"
+            >
+              <Menu size={24} className="text-slate-600" />
+            </button>
+            <Logo className="w-8 h-8 md:w-10 md:h-10" />
+            <span className="text-lg md:text-xl font-display font-bold tracking-tighter text-candy-pink text-glow-candy">KELAR.IN</span>
           </div>
-          <span className="text-lg font-display font-bold tracking-tighter text-candy-pink">KELAR.IN</span>
+          
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-white/40 shadow-sm">
+              <Candy className="text-candy-yellow" size={18} />
+              <div className="flex flex-col">
+                <span className="hidden md:block text-[8px] font-black text-slate-400 uppercase leading-none">Points</span>
+                <span className="text-xs md:text-sm font-bold text-slate-700 leading-none">{candyPoints}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-white/40 shadow-sm">
+              <Flame className="text-candy-pink" size={18} />
+              <div className="flex flex-col">
+                <span className="hidden md:block text-[8px] font-black text-slate-400 uppercase leading-none">Streak</span>
+                <span className="text-xs md:text-sm font-bold text-slate-700 leading-none">{streak}</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-candy-purple/10 border border-candy-purple/20 flex flex-col items-center justify-center text-candy-purple">
+              <span className="text-[6px] md:text-[8px] font-black uppercase leading-none">Level</span>
+              <span className="text-sm md:text-lg font-bold leading-none">{level}</span>
+            </div>
+          </div>
         </div>
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-600">
-          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
       </header>
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 glass-candy m-4 rounded-[2.5rem] p-6 flex flex-col gap-8 transition-transform duration-300
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:relative md:translate-x-0 md:flex
-      `}>
-        <div className="hidden md:flex items-center gap-3 px-2">
-          <div className="w-10 h-10 bg-candy-pink rounded-xl flex items-center justify-center shadow-lg">
-            <Zap size={24} className="text-white fill-current" />
-          </div>
-          <span className="text-xl font-display font-bold tracking-tighter text-candy-pink text-glow-candy">KELAR.IN</span>
-        </div>
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar */}
+        <aside className={`
+          fixed inset-y-0 left-0 z-40 w-64 glass-candy m-4 rounded-[2.5rem] p-6 flex flex-col gap-8 transition-transform duration-300
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:relative md:translate-x-0 md:flex md:m-0 md:rounded-none md:bg-transparent md:backdrop-blur-none md:border-r md:border-white/20
+        `}>
+          <nav className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-2">
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false)}} color="text-candy-blue" />
+            <SidebarItem icon={CheckSquare} label="Tasks" active={activeTab === 'tasks'} onClick={() => {setActiveTab('tasks'); setIsSidebarOpen(false)}} color="text-candy-pink" />
+            <SidebarItem icon={CalendarIcon} label="Schedule" active={activeTab === 'schedule'} onClick={() => {setActiveTab('schedule'); setIsSidebarOpen(false)}} color="text-candy-yellow" />
+            <SidebarItem icon={BrainCircuit} label="Study Lab" active={activeTab === 'quiz'} onClick={() => {setActiveTab('quiz'); setIsSidebarOpen(false)}} color="text-candy-purple" />
+            <SidebarItem icon={Timer} label="Focus" active={activeTab === 'timer'} onClick={() => {setActiveTab('timer'); setIsSidebarOpen(false)}} color="text-candy-blue" />
+            
+            <div className="my-2 px-4">
+              <div className="h-px bg-slate-200 w-full rounded-full opacity-60"></div>
+            </div>
 
-        <nav className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-2">
-          <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false)}} color="text-candy-blue" />
-          <SidebarItem icon={CheckSquare} label="Tasks" active={activeTab === 'tasks'} onClick={() => {setActiveTab('tasks'); setIsSidebarOpen(false)}} color="text-candy-pink" />
-          <SidebarItem icon={CalendarIcon} label="Schedule" active={activeTab === 'schedule'} onClick={() => {setActiveTab('schedule'); setIsSidebarOpen(false)}} color="text-candy-yellow" />
-          <SidebarItem icon={BrainCircuit} label="Study Lab" active={activeTab === 'quiz'} onClick={() => {setActiveTab('quiz'); setIsSidebarOpen(false)}} color="text-candy-purple" />
-          <SidebarItem icon={Timer} label="Focus" active={activeTab === 'timer'} onClick={() => {setActiveTab('timer'); setIsSidebarOpen(false)}} color="text-candy-blue" />
-          
-          <div className="my-2 px-4">
-            <div className="h-px bg-slate-200 w-full rounded-full opacity-60"></div>
-          </div>
+            <SidebarItem icon={BookOpen} label="Notes" active={activeTab === 'notes'} onClick={() => {setActiveTab('notes'); setIsSidebarOpen(false)}} color="text-candy-purple" />
+            <SidebarItem icon={MessageSquare} label="AI Chat" active={activeTab === 'chat'} onClick={() => {setActiveTab('chat'); setIsSidebarOpen(false)}} color="text-candy-green" />
+            <SidebarItem icon={Smile} label="Mood" active={activeTab === 'mood'} onClick={() => {setActiveTab('mood'); setIsSidebarOpen(false)}} color="text-candy-green" />
+            
+            <div className="my-2 px-4">
+              <div className="h-px bg-slate-200 w-full rounded-full opacity-60"></div>
+            </div>
 
-          <SidebarItem icon={BookOpen} label="Notes" active={activeTab === 'notes'} onClick={() => {setActiveTab('notes'); setIsSidebarOpen(false)}} color="text-candy-purple" />
-          <SidebarItem icon={MessageSquare} label="AI Chat" active={activeTab === 'chat'} onClick={() => {setActiveTab('chat'); setIsSidebarOpen(false)}} color="text-candy-green" />
-          <SidebarItem icon={Smile} label="Mood" active={activeTab === 'mood'} onClick={() => {setActiveTab('mood'); setIsSidebarOpen(false)}} color="text-candy-green" />
-        </nav>
+            <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => {setActiveTab('analytics'); setIsSidebarOpen(false)}} color="text-candy-blue" />
+            <SidebarItem icon={Layers} label="Flashcards" active={activeTab === 'flashcards'} onClick={() => {setActiveTab('flashcards'); setIsSidebarOpen(false)}} color="text-candy-purple" />
+            <SidebarItem icon={Trophy} label="Rewards" active={activeTab === 'rewards'} onClick={() => {setActiveTab('rewards'); setIsSidebarOpen(false)}} color="text-candy-yellow" />
+          </nav>
 
-        <div className="mt-auto p-4 bg-candy-blue/10 rounded-3xl border border-candy-blue/20">
-          <div className="flex items-center gap-3 mb-2">
-            <Droplets className="text-candy-blue" size={20} />
-            <span className="text-xs font-bold text-candy-blue uppercase tracking-widest">Hydration</span>
+          <div className="mt-auto p-4 bg-candy-blue/10 rounded-3xl border border-candy-blue/20">
+            <div className="flex items-center gap-3 mb-2">
+              <Droplets className="text-candy-blue" size={20} />
+              <span className="text-xs font-bold text-candy-blue uppercase tracking-widest">Hydration</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-600">{waterIntake} / 8 glasses</span>
+              <button onClick={() => setWaterIntake(w => Math.min(w + 1, 12))} className="w-8 h-8 rounded-full bg-candy-blue text-white flex items-center justify-center hover:scale-110 transition-transform shadow-md">
+                <Plus size={16} />
+              </button>
+            </div>
+            <div className="mt-2 h-2 w-full bg-white rounded-full overflow-hidden">
+              <motion.div animate={{ width: `${(waterIntake / 8) * 100}%` }} className="h-full bg-candy-blue" />
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-600">{waterIntake} / 8 glasses</span>
-            <button onClick={() => setWaterIntake(w => Math.min(w + 1, 12))} className="w-8 h-8 rounded-full bg-candy-blue text-white flex items-center justify-center hover:scale-110 transition-transform shadow-md">
-              <Plus size={16} />
-            </button>
-          </div>
-          <div className="mt-2 h-2 w-full bg-white rounded-full overflow-hidden">
-            <motion.div animate={{ width: `${(waterIntake / 8) * 100}%` }} className="h-full bg-candy-blue" />
-          </div>
-        </div>
-      </aside>
+        </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 relative z-10 overflow-y-auto h-screen custom-scrollbar">
-        <header className="hidden md:flex items-center justify-between mb-12">
-          <div>
-            <h1 className="text-3xl font-display font-bold mb-1 text-slate-800">Productivity Hub.</h1>
-            <p className="text-slate-400 text-sm">Everything is ready for your success!</p>
-          </div>
-          <div className="flex items-center gap-4">
-          </div>
-        </header>
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-8 relative z-10 overflow-y-auto custom-scrollbar">
+          <header className="hidden md:flex items-center justify-between mb-12">
+            <div className="flex items-center gap-4">
+              <Logo className="w-12 h-12" />
+              <div>
+                <h1 className="text-3xl font-display font-bold mb-1 text-slate-800">Productivity Hub.</h1>
+                <p className="text-slate-400 text-sm">Everything is ready for your success!</p>
+              </div>
+            </div>
+          </header>
 
         <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
-            <motion.div key="dash" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <CandyCard title="Today's Progress" className="col-span-1 md:col-span-2" color="bg-candy-blue/5">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                  <div>
-                    <div className="text-6xl font-display font-bold mb-2 text-candy-blue">2.4h</div>
-                    <div className="text-xs text-slate-400 uppercase tracking-widest font-bold">Focus Time Today</div>
+            <motion.div key="dash" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+              {/* Top Row: Progress & Hydration */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <CandyCard title="Today's Progress" className="col-span-1 md:col-span-2" color="bg-candy-blue/5">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                      <div className="text-6xl font-display font-bold mb-2 text-candy-blue">2.4h</div>
+                      <div className="text-xs text-slate-400 uppercase tracking-widest font-bold">Focus Time Today</div>
+                    </div>
+                    <div className="text-center md:text-right">
+                      <div className="text-3xl font-bold text-candy-pink">{tasks.filter(t => t.completed).length} / {tasks.length}</div>
+                      <div className="text-xs text-slate-400 uppercase tracking-widest font-bold">Tasks Completed</div>
+                    </div>
                   </div>
-                  <div className="text-center md:text-right">
-                    <div className="text-3xl font-bold text-candy-pink">{tasks.filter(t => t.completed).length} / {tasks.length}</div>
-                    <div className="text-xs text-slate-400 uppercase tracking-widest font-bold">Tasks Completed</div>
+                </CandyCard>
+                
+                <CandyCard title="Hydration Goal" color="bg-candy-blue/5">
+                  <div className="text-center">
+                    <div className="text-4xl font-display font-bold text-candy-blue mb-2">{waterIntake} <span className="text-lg">glasses</span></div>
+                    <p className="text-xs text-slate-400 mb-4">Stay fresh, stay smart!</p>
+                    <button onClick={() => setWaterIntake(0)} className="text-[10px] font-bold text-slate-300 hover:text-candy-blue uppercase tracking-widest">Reset Daily</button>
                   </div>
-                </div>
-              </CandyCard>
-              
-              <CandyCard title="Hydration Goal" color="bg-candy-blue/5">
-                <div className="text-center">
-                  <div className="text-4xl font-display font-bold text-candy-blue mb-2">{waterIntake} <span className="text-lg">glasses</span></div>
-                  <p className="text-xs text-slate-400 mb-4">Stay fresh, stay smart!</p>
-                  <button onClick={() => setWaterIntake(0)} className="text-[10px] font-bold text-slate-300 hover:text-candy-blue uppercase tracking-widest">Reset Daily</button>
-                </div>
-              </CandyCard>
+                </CandyCard>
+              </div>
 
-              <CandyCard title="Focus Music" className="col-span-1 md:col-span-3" color="bg-candy-purple/5">
-                <div className="flex flex-col md:flex-row items-center gap-6">
-                  <div className="w-16 h-16 rounded-2xl bg-candy-purple flex items-center justify-center text-white shadow-lg">
-                    <Music size={32} />
+              {/* Middle Row: Tasks, Focus Room, Analytics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Quick Tasks */}
+                <CandyCard title="Quick Tasks" color="bg-candy-pink/5">
+                  <div className="space-y-3 mb-4">
+                    {tasks.filter(t => !t.completed).slice(0, 3).map(t => (
+                      <div key={t.id} className="flex items-center gap-2 p-2 bg-white/50 rounded-xl border border-white/20">
+                        <div className="w-2 h-2 rounded-full bg-candy-pink" />
+                        <span className="text-sm font-medium text-slate-600 truncate">{t.text}</span>
+                      </div>
+                    ))}
+                    {tasks.filter(t => !t.completed).length === 0 && <p className="text-xs text-slate-400 italic">No pending tasks!</p>}
                   </div>
-                  <div className="flex-1 text-center md:text-left">
-                    <h4 className="font-bold text-lg text-slate-700">{CANDY_SONGS[currentSongIndex].title}</h4>
-                    <p className="text-sm text-slate-400">{CANDY_SONGS[currentSongIndex].artist}</p>
+                  <button onClick={() => setActiveTab('tasks')} className="w-full py-2 bg-candy-pink/10 text-candy-pink rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-candy-pink/20 transition-colors flex items-center justify-center gap-2">
+                    Manage Tasks <ArrowRight size={14} />
+                  </button>
+                </CandyCard>
+
+                {/* Focus Room Preview */}
+                <CandyCard title="Focus Room" color="bg-candy-green/5">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex -space-x-2">
+                      {[4,5,6].map(i => (
+                        <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 overflow-hidden">
+                          <img src={`https://picsum.photos/seed/user${i}/32/32`} alt="user" referrerPolicy="no-referrer" />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-slate-700">Live Room</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">Studying Now</div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => setCurrentSongIndex(i => (i - 1 + CANDY_SONGS.length) % CANDY_SONGS.length)} className="p-3 rounded-full hover:bg-white transition-colors text-slate-400"><SkipBack size={24} /></button>
-                    <button onClick={() => setIsPlayingMusic(!isPlayingMusic)} className="w-14 h-14 rounded-full bg-candy-purple text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-                      {isPlayingMusic ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
-                    </button>
-                    <button onClick={() => setCurrentSongIndex(i => (i + 1) % CANDY_SONGS.length)} className="p-3 rounded-full hover:bg-white transition-colors text-slate-400"><SkipForward size={24} /></button>
+                  <button onClick={() => setActiveTab('timer')} className="w-full py-2 bg-candy-green/10 text-candy-green rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-candy-green/20 transition-colors flex items-center justify-center gap-2">
+                    Join Session <ArrowRight size={14} />
+                  </button>
+                </CandyCard>
+
+                {/* Analytics Preview */}
+                <CandyCard title="Productivity" color="bg-candy-blue/5">
+                  <div className="h-24 mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        { name: 'M', v: 40 }, { name: 'T', v: 70 }, { name: 'W', v: 50 }, { name: 'T', v: 90 }, { name: 'F', v: 60 }
+                      ]}>
+                        <Bar dataKey="v" fill="#7ec8e3" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                </div>
-              </CandyCard>
+                  <button onClick={() => setActiveTab('analytics')} className="w-full py-2 bg-candy-blue/10 text-candy-blue rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-candy-blue/20 transition-colors flex items-center justify-center gap-2">
+                    View Insights <ArrowRight size={14} />
+                  </button>
+                </CandyCard>
+              </div>
+
+              {/* Bottom Row: Music & Flashcards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <CandyCard title="Focus Music" className="col-span-1 md:col-span-2" color="bg-candy-purple/5">
+                  <div className="flex flex-col md:flex-row items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-candy-purple flex items-center justify-center text-white shadow-lg">
+                      <Music size={32} />
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <h4 className="font-bold text-lg text-slate-700">{CANDY_SONGS[currentSongIndex].title}</h4>
+                      <p className="text-sm text-slate-400">{CANDY_SONGS[currentSongIndex].artist}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => setCurrentSongIndex(i => (i - 1 + CANDY_SONGS.length) % CANDY_SONGS.length)} className="p-3 rounded-full hover:bg-white transition-colors text-slate-400"><SkipBack size={24} /></button>
+                      <button onClick={() => setIsPlayingMusic(!isPlayingMusic)} className="w-14 h-14 rounded-full bg-candy-purple text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                        {isPlayingMusic ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
+                      </button>
+                      <button onClick={() => setCurrentSongIndex(i => (i + 1) % CANDY_SONGS.length)} className="p-3 rounded-full hover:bg-white transition-colors text-slate-400"><SkipForward size={24} /></button>
+                    </div>
+                  </div>
+                </CandyCard>
+
+                <CandyCard title="Flashcard of the Day" color="bg-candy-purple/5">
+                  {flashcards.length > 0 ? (
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-slate-600 mb-4 line-clamp-2">"{flashcards[Math.floor(Math.random() * flashcards.length)].front}"</p>
+                      <button onClick={() => setActiveTab('flashcards')} className="w-full py-2 bg-candy-purple/10 text-candy-purple rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-candy-purple/20 transition-colors">
+                        Study Now
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-xs text-slate-400 mb-4 italic">No cards yet!</p>
+                      <button onClick={() => setActiveTab('flashcards')} className="w-full py-2 bg-candy-purple/10 text-candy-purple rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-candy-purple/20 transition-colors">
+                        Create Cards
+                      </button>
+                    </div>
+                  )}
+                </CandyCard>
+              </div>
             </motion.div>
           )}
 
@@ -595,7 +788,11 @@ export default function App() {
                 {tasks.map(t => (
                   <div key={t.id} className="glass-candy p-5 rounded-3xl flex items-center justify-between group bg-white/50">
                     <div className="flex items-center gap-4">
-                      <button onClick={() => setTasks(tasks.map(x => x.id === t.id ? {...x, completed: !x.completed} : x))} className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${t.completed ? 'bg-candy-pink border-candy-pink' : 'border-slate-200 hover:border-candy-pink'}`}>
+                      <button onClick={() => {
+                        const isCompleting = !t.completed;
+                        setTasks(tasks.map(x => x.id === t.id ? {...x, completed: isCompleting} : x));
+                        if (isCompleting) setCandyPoints(p => p + 10);
+                      }} className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${t.completed ? 'bg-candy-pink border-candy-pink' : 'border-slate-200 hover:border-candy-pink'}`}>
                         {t.completed && <CheckCircle2 size={16} className="text-white" />}
                       </button>
                       <span className={`text-lg font-medium ${t.completed ? 'line-through text-slate-300' : 'text-slate-700'}`}>{t.text}</span>
@@ -752,7 +949,7 @@ export default function App() {
                               s.type === 'Class' ? 'bg-candy-blue/10 text-candy-blue' : 
                               s.type === 'Exam' ? 'bg-candy-pink/10 text-candy-pink' : 
                               s.type === 'Break' ? 'bg-candy-green/10 text-candy-green' : 
-                              'bg-candy-yellow/10 text-candy-yellow'
+                              'border-l-candy-yellow'
                             }`}>
                               {s.type}
                             </span>
@@ -768,11 +965,6 @@ export default function App() {
                           </button>
                         </motion.div>
                       ))}
-                      {schedules.filter(s => s.day === day).length === 0 && (
-                        <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl opacity-30">
-                          <span className="text-[10px] font-bold uppercase tracking-tighter">Free</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -810,26 +1002,11 @@ export default function App() {
                               onChange={handleFileUpload} 
                             />
                           </label>
-                          {studyMaterial && (
-                            <button 
-                              onClick={() => setStudyMaterial('')}
-                              className="px-4 py-2 bg-white text-red-400 border border-red-100 rounded-xl text-xs font-bold hover:bg-red-50 transition-colors flex items-center gap-2"
-                            >
-                              <Trash2 size={14} />
-                              Clear
-                            </button>
-                          )}
                         </div>
                       </div>
                       <textarea 
                         value={studyMaterial}
-                        onChange={(e) => {
-                          setStudyMaterial(e.target.value);
-                          if (e.target.value) {
-                            setFileName(null);
-                            setUploadedImage(null);
-                          }
-                        }}
+                        onChange={(e) => setStudyMaterial(e.target.value)}
                         placeholder="Paste your notes here or upload a file..."
                         className="w-full h-64 bg-white rounded-2xl p-6 outline-none border border-transparent focus:border-candy-purple text-slate-700 resize-none shadow-inner"
                       />
@@ -837,17 +1014,13 @@ export default function App() {
                         <div className="flex items-center gap-2 p-3 bg-candy-purple/5 rounded-xl border border-candy-purple/10">
                           <FileText size={18} className="text-candy-purple" />
                           <span className="text-sm font-bold text-slate-600 truncate max-w-xs">{fileName}</span>
-                          <button onClick={() => { setFileName(null); setUploadedImage(null); setStudyMaterial(''); }} className="ml-auto text-slate-400 hover:text-red-400">
-                            <X size={16} />
-                          </button>
                         </div>
                       )}
-                      <div className="flex justify-between items-center">
-                        <p className="text-xs text-slate-400 font-medium italic">Pro tip: The more detailed the content, the better the quiz!</p>
+                      <div className="flex justify-end">
                         <button 
                           onClick={generateQuiz}
                           disabled={!studyMaterial.trim() && !uploadedImage}
-                          className="px-8 py-4 bg-candy-purple text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                          className="px-8 py-4 bg-candy-purple text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-all disabled:opacity-50"
                         >
                           <Sparkles size={20} /> Generate Quiz
                         </button>
@@ -859,39 +1032,16 @@ export default function App() {
 
               {isQuizLoading && (
                 <div className="flex flex-col items-center justify-center py-20 space-y-6">
-                  <div className="relative">
-                    <div className="w-24 h-24 border-4 border-candy-purple/20 rounded-full" />
-                    <div className="absolute inset-0 w-24 h-24 border-4 border-candy-purple border-t-transparent rounded-full animate-spin" />
-                    <BrainCircuit className="absolute inset-0 m-auto text-candy-purple animate-pulse" size={32} />
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-xl font-bold text-slate-700">AI is reading your material...</h3>
-                    <p className="text-slate-400">Crafting personalized questions just for you.</p>
-                  </div>
+                  <Loader2 className="w-12 h-12 text-candy-purple animate-spin" />
+                  <h3 className="text-xl font-bold text-slate-700">AI is reading your material...</h3>
                 </div>
               )}
 
               {quizQuestions.length > 0 && !quizFinished && (
                 <div className="space-y-8">
                   <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-candy-purple text-white rounded-xl flex items-center justify-center font-bold">
-                        {currentQuizIndex + 1}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-700">Question {currentQuizIndex + 1} of {quizQuestions.length}</h3>
-                        <div className="w-48 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${((currentQuizIndex + 1) / quizQuestions.length) * 100}%` }}
-                            className="h-full bg-candy-purple"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                      Score: {quizScore}
-                    </div>
+                    <h3 className="font-bold text-slate-700">Question {currentQuizIndex + 1} of {quizQuestions.length}</h3>
+                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest">Score: {quizScore}</div>
                   </div>
 
                   <motion.div 
@@ -904,119 +1054,57 @@ export default function App() {
                       {quizQuestions[currentQuizIndex].question}
                     </h2>
                     <div className="grid grid-cols-1 gap-4">
-                      {quizQuestions[currentQuizIndex].options.map((option, idx) => {
-                        const isCorrect = idx === quizQuestions[currentQuizIndex].correctAnswer;
-                        const isSelected = idx === selectedOption;
-                        
-                        let buttonClass = "border-slate-50 hover:border-candy-purple hover:bg-candy-purple/5";
-                        if (showExplanation) {
-                          if (isCorrect) buttonClass = "border-candy-green bg-candy-green/10";
-                          else if (isSelected) buttonClass = "border-candy-pink bg-candy-pink/10";
-                          else buttonClass = "border-slate-50 opacity-50";
-                        }
-
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => handleAnswer(idx)}
-                            disabled={showExplanation}
-                            className={`w-full text-left p-6 rounded-2xl border-2 transition-all group flex items-center gap-4 ${buttonClass}`}
-                          >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold transition-colors ${
-                              showExplanation && isCorrect ? 'bg-candy-green text-white' :
-                              showExplanation && isSelected && !isCorrect ? 'bg-candy-pink text-white' :
-                              'bg-slate-100 text-slate-500 group-hover:bg-candy-purple group-hover:text-white'
-                            }`}>
-                              {String.fromCharCode(65 + idx)}
-                            </div>
-                            <span className="font-medium text-slate-700">{option}</span>
-                            {showExplanation && isCorrect && <CheckCircle2 size={20} className="ml-auto text-candy-green" />}
-                            {showExplanation && isSelected && !isCorrect && <XCircle size={20} className="ml-auto text-candy-pink" />}
-                          </button>
-                        );
-                      })}
+                      {quizQuestions[currentQuizIndex].options.map((option, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleAnswer(idx)}
+                          disabled={showExplanation}
+                          className={`w-full text-left p-6 rounded-2xl border-2 transition-all flex items-center gap-4 ${
+                            showExplanation 
+                              ? idx === quizQuestions[currentQuizIndex].correctAnswer 
+                                ? 'border-candy-green bg-candy-green/10' 
+                                : idx === selectedOption 
+                                  ? 'border-candy-pink bg-candy-pink/10' 
+                                  : 'border-slate-50 opacity-50'
+                              : 'border-slate-50 hover:border-candy-purple hover:bg-candy-purple/5'
+                          }`}
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-500">
+                            {String.fromCharCode(65 + idx)}
+                          </div>
+                          <span className="font-medium text-slate-700">{option}</span>
+                        </button>
+                      ))}
                     </div>
 
-                    <AnimatePresence>
-                      {showExplanation && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`p-2 rounded-lg ${selectedOption === quizQuestions[currentQuizIndex].correctAnswer ? 'bg-candy-green/10 text-candy-green' : 'bg-candy-pink/10 text-candy-pink'}`}>
-                              <Sparkles size={18} />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-slate-700 mb-1">Explanation</h4>
-                              <p className="text-sm text-slate-600 leading-relaxed">
-                                {quizQuestions[currentQuizIndex].explanation}
-                              </p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={nextQuestion}
-                            className="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 transition-colors"
-                          >
-                            {currentQuizIndex < quizQuestions.length - 1 ? 'Next Question' : 'See Results'}
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    {showExplanation && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <h4 className="font-bold text-slate-700 mb-2">Explanation</h4>
+                        <p className="text-sm text-slate-600 leading-relaxed">{quizQuestions[currentQuizIndex].explanation}</p>
+                        <button onClick={nextQuestion} className="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold">
+                          {currentQuizIndex < quizQuestions.length - 1 ? 'Next Question' : 'See Results'}
+                        </button>
+                      </motion.div>
+                    )}
                   </motion.div>
                 </div>
               )}
 
               {quizFinished && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-12"
-                >
-                  <div className="w-32 h-32 bg-candy-yellow/10 rounded-full flex items-center justify-center mx-auto mb-8 text-candy-yellow relative">
-                    <Trophy size={64} />
-                    <motion.div 
-                      animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="absolute -top-2 -right-2 text-candy-pink"
-                    >
-                      <Sparkles size={32} />
-                    </motion.div>
-                  </div>
+                <div className="text-center py-12">
+                  <Trophy size={64} className="text-candy-yellow mx-auto mb-6" />
                   <h2 className="text-4xl font-display font-bold text-slate-800 mb-2">Quiz Complete!</h2>
-                  <p className="text-slate-400 mb-8">You've mastered this material.</p>
-                  
-                  <div className="max-w-md mx-auto glass-candy p-8 rounded-[2rem] bg-white/50 mb-12">
-                    <div className="text-6xl font-display font-bold text-candy-purple mb-2">
-                      {Math.round((quizScore / quizQuestions.length) * 100)}%
-                    </div>
-                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                      Your Final Score: {quizScore} / {quizQuestions.length}
-                    </div>
+                  <div className="text-6xl font-display font-bold text-candy-purple mb-8">
+                    {Math.round((quizScore / quizQuestions.length) * 100)}%
                   </div>
-
-                  <div className="flex gap-4 justify-center">
-                    <button 
-                      onClick={() => {
-                        setQuizQuestions([]);
-                        setQuizFinished(false);
-                      }}
-                      className="px-8 py-4 bg-candy-purple text-white rounded-2xl font-bold shadow-lg hover:scale-105 transition-transform"
-                    >
-                      Try Another Material
-                    </button>
-                    <button 
-                      onClick={generateQuiz}
-                      className="px-8 py-4 bg-white text-slate-600 rounded-2xl font-bold shadow-md hover:scale-105 transition-transform"
-                    >
-                      Retake Quiz
-                    </button>
-                  </div>
-                </motion.div>
+                  <button onClick={() => {setQuizQuestions([]); setQuizFinished(false);}} className="px-8 py-4 bg-candy-purple text-white rounded-2xl font-bold shadow-lg">
+                    Try Another Material
+                  </button>
+                </div>
               )}
             </motion.div>
           )}
+
           {activeTab === 'mood' && (
             <motion.div key="mood" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
               <div className="glass-candy p-8 rounded-[2rem] text-center">
@@ -1048,21 +1136,17 @@ export default function App() {
                     Recent Moods
                   </h3>
                   <div className="space-y-4">
-                    {moodHistory.length === 0 ? (
-                      <div className="text-center py-12 text-slate-400 italic">No moods recorded today.</div>
-                    ) : (
-                      moodHistory.map((entry) => (
-                        <div key={entry.id} className="flex items-center gap-4 p-4 bg-white/50 rounded-2xl border border-white/20">
-                          <div className={`p-2 rounded-xl bg-slate-100 ${entry.color}`}>
-                            <entry.icon size={20} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-bold text-slate-700">{entry.mood}</div>
-                            <div className="text-xs text-slate-400">{entry.time}</div>
-                          </div>
+                    {moodHistory.map((entry) => (
+                      <div key={entry.id} className="flex items-center gap-4 p-4 bg-white/50 rounded-2xl border border-white/20">
+                        <div className={`p-2 rounded-xl bg-slate-100 ${entry.color}`}>
+                          <entry.icon size={20} />
                         </div>
-                      ))
-                    )}
+                        <div className="flex-1">
+                          <div className="font-bold text-slate-700">{entry.mood}</div>
+                          <div className="text-xs text-slate-400">{entry.time}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1082,9 +1166,32 @@ export default function App() {
               </div>
             </motion.div>
           )}
+
           {activeTab === 'timer' && (
             <motion.div key="timer" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="flex flex-col items-center justify-center py-12">
-              <div className="flex gap-3 mb-12">
+              {/* Focus Room Widget */}
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 glass-candy px-6 py-3 rounded-2xl flex items-center gap-4 bg-white/50 border border-white/40"
+              >
+                <div className="flex -space-x-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 overflow-hidden">
+                      <img src={`https://picsum.photos/seed/user${i}/32/32`} alt="user" referrerPolicy="no-referrer" />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-slate-700">Live Focus Room</span>
+                  <span className="text-[10px] text-candy-green font-bold uppercase tracking-widest flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-candy-green animate-pulse" />
+                    Learning with you now
+                  </span>
+                </div>
+              </motion.div>
+
+              <div className="flex flex-wrap justify-center items-center gap-3 mb-12">
                 {[15, 25, 45, 60].map(mins => (
                   <button 
                     key={mins}
@@ -1093,6 +1200,7 @@ export default function App() {
                       setFocusDuration(secs);
                       setTimeLeft(secs);
                       setIsActive(false);
+                      setManualMinutes(mins.toString());
                     }}
                     className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${
                       focusDuration === mins * 60 
@@ -1103,6 +1211,34 @@ export default function App() {
                     {mins}m
                   </button>
                 ))}
+                
+                <div className="h-8 w-px bg-slate-200 mx-2 hidden sm:block"></div>
+
+                <div className="flex items-center gap-2 glass-candy p-1.5 rounded-xl bg-white/50 border border-white/40">
+                  <input 
+                    type="number" 
+                    value={manualMinutes} 
+                    onChange={(e) => setManualMinutes(e.target.value)}
+                    className="w-12 bg-transparent text-center font-bold text-slate-700 outline-none text-sm"
+                    min="1"
+                    max="999"
+                  />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">min</span>
+                  <button 
+                    onClick={() => {
+                      const mins = parseInt(manualMinutes);
+                      if (mins > 0) {
+                        const secs = mins * 60;
+                        setFocusDuration(secs);
+                        setTimeLeft(secs);
+                        setIsActive(false);
+                      }
+                    }}
+                    className="bg-candy-blue text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm"
+                  >
+                    Set
+                  </button>
+                </div>
               </div>
 
               <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center">
@@ -1150,6 +1286,203 @@ export default function App() {
               </div>
             </motion.div>
           )}
+
+          {activeTab === 'analytics' && (
+            <motion.div key="analytics" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <CandyCard title="Total Points" color="bg-candy-yellow/10" className="md:col-span-1">
+                  <div className="text-4xl font-display font-bold text-candy-yellow">{candyPoints}</div>
+                  <p className="text-xs text-slate-400 mt-1">Keep earning!</p>
+                </CandyCard>
+                <CandyCard title="Current Streak" color="bg-candy-pink/10" className="md:col-span-1">
+                  <div className="text-4xl font-display font-bold text-candy-pink flex items-center gap-2">
+                    {streak} <Flame size={32} />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Days in a row</p>
+                </CandyCard>
+                <CandyCard title="Productivity Level" color="bg-candy-purple/10" className="md:col-span-1">
+                  <div className="text-4xl font-display font-bold text-candy-purple">Lvl {level}</div>
+                  <p className="text-xs text-slate-400 mt-1">Master of Focus</p>
+                </CandyCard>
+                <CandyCard title="Focus Score" color="bg-candy-blue/10" className="md:col-span-1">
+                  <div className="text-4xl font-display font-bold text-candy-blue">88</div>
+                  <p className="text-xs text-slate-400 mt-1">Top 5% of students</p>
+                </CandyCard>
+
+                <CandyCard title="Focus Time Distribution" className="md:col-span-2 h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={[
+                      { name: 'Mon', time: 120 },
+                      { name: 'Tue', time: 180 },
+                      { name: 'Wed', time: 150 },
+                      { name: 'Thu', time: 210 },
+                      { name: 'Fri', time: 190 },
+                      { name: 'Sat', time: 90 },
+                      { name: 'Sun', time: 60 },
+                    ]}>
+                      <defs>
+                        <linearGradient id="colorTime" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#7ec8e3" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#7ec8e3" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
+                      <YAxis hide />
+                      <RechartsTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                      <Area type="monotone" dataKey="time" stroke="#7ec8e3" strokeWidth={3} fillOpacity={1} fill="url(#colorTime)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CandyCard>
+
+                <CandyCard title="Task Categories" className="md:col-span-2 h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Study', count: 12 },
+                      { name: 'Class', count: 8 },
+                      { name: 'Exam', count: 3 },
+                      { name: 'Break', count: 15 },
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
+                      <YAxis hide />
+                      <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                      <Bar dataKey="count" fill="#ff85a2" radius={[10, 10, 0, 0]} barSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CandyCard>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'flashcards' && (
+            <motion.div key="flashcards" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-display font-bold text-slate-800">AI Flashcards</h2>
+                  <p className="text-slate-400 text-sm">Master your material with spaced repetition.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    const front = prompt('Enter front of card:');
+                    const back = prompt('Enter back of card:');
+                    if (front && back) {
+                      setFlashcards([...flashcards, { id: Date.now().toString(), front, back, mastered: false }]);
+                    }
+                  }}
+                  className="px-6 py-3 bg-candy-purple text-white font-bold rounded-2xl shadow-lg hover:scale-105 transition-transform flex items-center gap-2"
+                >
+                  <Plus size={20} /> Add Card
+                </button>
+              </div>
+
+              {flashcards.length === 0 ? (
+                <div className="text-center py-20 glass-candy rounded-[2.5rem] bg-white/30 border-dashed border-2 border-slate-200">
+                  <Layers className="mx-auto text-slate-200 mb-4" size={64} />
+                  <p className="text-slate-400 font-bold uppercase tracking-widest">No flashcards yet</p>
+                  <p className="text-xs text-slate-300 mt-2">Add some manually or generate from Study Lab!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {flashcards.map(card => (
+                    <motion.div 
+                      key={card.id}
+                      whileHover={{ scale: 1.02 }}
+                      className="group relative h-64 perspective-1000"
+                    >
+                      <div className="relative w-full h-full transition-transform duration-500 transform-style-3d group-hover:rotate-y-180">
+                        {/* Front */}
+                        <div className="absolute inset-0 backface-hidden glass-candy p-8 rounded-[2rem] flex flex-col items-center justify-center text-center bg-white">
+                          <span className="text-xs font-bold text-candy-purple uppercase tracking-widest mb-4">Question</span>
+                          <p className="text-lg font-bold text-slate-700">{card.front}</p>
+                          <div className="mt-auto text-[10px] text-slate-300 font-bold uppercase tracking-widest flex items-center gap-1">
+                            Hover to flip <ArrowRight size={10} />
+                          </div>
+                        </div>
+                        {/* Back */}
+                        <div className="absolute inset-0 backface-hidden rotate-y-180 glass-candy p-8 rounded-[2rem] flex flex-col items-center justify-center text-center bg-candy-purple/10 border-candy-purple/20">
+                          <span className="text-xs font-bold text-candy-purple uppercase tracking-widest mb-4">Answer</span>
+                          <p className="text-lg font-bold text-slate-700">{card.back}</p>
+                          <div className="mt-auto flex gap-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFlashcards(flashcards.filter(f => f.id !== card.id));
+                              }}
+                              className="p-2 rounded-xl bg-white text-red-400 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFlashcards(flashcards.map(f => f.id === card.id ? {...f, mastered: !f.mastered} : f));
+                                if (!card.mastered) setCandyPoints(p => p + 20);
+                              }}
+                              className={`px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${
+                                card.mastered ? 'bg-candy-green text-slate-700' : 'bg-white text-slate-400'
+                              }`}
+                            >
+                              {card.mastered ? 'Mastered!' : 'Mark Mastered'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === 'rewards' && (
+            <motion.div key="rewards" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-8">
+              <div className="text-center mb-12">
+                <div className="w-24 h-24 bg-candy-yellow/10 rounded-full flex items-center justify-center mx-auto mb-6 text-candy-yellow">
+                  <Star size={48} className="fill-current" />
+                </div>
+                <h2 className="text-3xl font-display font-bold text-slate-800">Candy Rewards</h2>
+                <p className="text-slate-400">Redeem your points for cool digital perks!</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { title: 'Golden Timer', cost: 500, icon: Timer, color: 'bg-candy-yellow' },
+                  { title: 'Exclusive Lofi Pack', cost: 1000, icon: Music, color: 'bg-candy-purple' },
+                  { title: 'AI Pro Assistant', cost: 2500, icon: Sparkles, color: 'bg-candy-blue' },
+                  { title: 'Custom Theme', cost: 5000, icon: Zap, color: 'bg-candy-pink' },
+                  { title: 'Productivity Badge', cost: 100, icon: Trophy, color: 'bg-candy-green' },
+                  { title: 'Secret Moods', cost: 300, icon: Smile, color: 'bg-candy-blue' },
+                ].map((reward, i) => (
+                  <CandyCard key={i} className="flex flex-col items-center text-center p-8">
+                    <div className={`w-16 h-16 rounded-2xl ${reward.color} text-white flex items-center justify-center mb-6 shadow-lg`}>
+                      <reward.icon size={32} />
+                    </div>
+                    <h4 className="font-bold text-slate-700 mb-2">{reward.title}</h4>
+                    <div className="flex items-center gap-1 text-candy-yellow font-bold text-sm mb-6">
+                      <Candy size={14} /> {reward.cost} pts
+                    </div>
+                    <button 
+                      disabled={candyPoints < reward.cost}
+                      onClick={() => {
+                        if (candyPoints >= reward.cost) {
+                          setCandyPoints(p => p - reward.cost);
+                          alert(`Redeemed ${reward.title}!`);
+                        }
+                      }}
+                      className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${
+                        candyPoints >= reward.cost 
+                          ? 'bg-slate-800 text-white hover:scale-105' 
+                          : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                      }`}
+                    >
+                      {candyPoints >= reward.cost ? 'Redeem' : 'Not Enough Points'}
+                    </button>
+                  </CandyCard>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
         <StylizedFooter />
       </main>
@@ -1162,5 +1495,6 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 133, 162, 0.2); }
       `}} />
     </div>
-  );
+  </div>
+);
 }
