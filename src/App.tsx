@@ -47,6 +47,7 @@ import { GoogleGenAI } from "@google/genai";
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
+import asmrHujan from './audio/asmrhujan.mp3';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
@@ -92,6 +93,7 @@ interface QuizQuestion {
 }
 
 const CANDY_SONGS: Song[] = [
+  { title: "ASMR Hujan", artist: "Nature Sounds", url: asmrHujan }, 
   { title: "Ethereal Piano", artist: "Soft Keys", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3" },
   { title: "Midnight Keys", artist: "Dreamy Piano", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3" },
   { title: "Morning Dew", artist: "Nature Piano", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" },
@@ -108,13 +110,11 @@ const ParallaxBackground = () => {
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Large Blobs */}
       <motion.div style={{ y: y1, rotate, scale }} className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-candy-pink/5 rounded-full blur-[120px]" />
       <motion.div style={{ y: y2, rotate: -rotate }} className="absolute top-1/4 -right-40 w-[600px] h-[600px] bg-candy-blue/5 rounded-full blur-[150px]" />
       <motion.div style={{ y: y3, scale }} className="absolute bottom-1/4 left-1/4 w-[450px] h-[450px] bg-candy-purple/5 rounded-full blur-[100px]" />
       <motion.div style={{ y: y4 }} className="absolute -bottom-20 right-1/4 w-[400px] h-[400px] bg-candy-yellow/5 rounded-full blur-[130px]" />
       
-      {/* Floating Icons & Components */}
       <motion.div style={{ y: y2 }} className="absolute top-20 left-[10%] text-candy-pink/10 animate-float opacity-40">
         <Candy size={120} strokeWidth={1} />
       </motion.div>
@@ -131,12 +131,10 @@ const ParallaxBackground = () => {
         <CheckSquare size={140} strokeWidth={0.5} />
       </motion.div>
 
-      {/* Decorative Circles */}
       <div className="absolute top-1/3 left-1/2 w-2 h-2 bg-candy-pink/20 rounded-full animate-pulse" />
       <div className="absolute bottom-1/3 right-1/2 w-3 h-3 bg-candy-blue/20 rounded-full animate-pulse delay-700" />
       <div className="absolute top-1/2 left-1/4 w-1.5 h-1.5 bg-candy-purple/20 rounded-full animate-pulse delay-1000" />
 
-      {/* Mini Floating Widgets */}
       <motion.div style={{ y: y3 }} className="absolute top-[10%] right-[10%] glass-candy p-3 rounded-2xl opacity-20 hidden lg:block">
         <div className="w-20 h-2 bg-slate-200 rounded-full mb-2" />
         <div className="w-12 h-2 bg-slate-100 rounded-full" />
@@ -163,7 +161,6 @@ const StylizedFooter = () => {
     <footer className="mt-20 pb-12 pt-20 border-t border-slate-100/50 relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex flex-col items-center justify-center gap-8">
-          {/* Stylized Logo Text */}
           <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 footer-text-stylized text-5xl md:text-9xl p-10">
             <span className="text-candy-pink glass-text -rotate-6 animate-liquid">K</span>
             <span className="text-candy-blue glass-text rotate-3 animate-liquid" style={{ animationDelay: '0.5s' }}>E</span>
@@ -305,12 +302,14 @@ export default function App() {
   }, [isActive, timeLeft, isPlayingMusic]);
 
   useEffect(() => {
-    if (isPlayingMusic && isActive) {
-      audioRef.current?.play().catch(e => console.log("Audio play failed:", e));
-    } else {
-      audioRef.current?.pause();
+    if (audioRef.current) {
+      if (isPlayingMusic) {
+        audioRef.current.play().catch(e => console.log("Audio play failed:", e));
+      } else {
+        audioRef.current.pause();
+      }
     }
-  }, [isPlayingMusic, isActive, currentSongIndex]);
+  }, [isPlayingMusic, currentSongIndex]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -327,15 +326,25 @@ export default function App() {
     setIsChatLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      // PERBAIKAN: Menggunakan import.meta.env untuk Vite
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        setChatHistory(prev => [...prev, { role: 'model', text: "Oops! API Key Gemini belum diatur. Silakan tambahkan VITE_GEMINI_API_KEY di file .env kamu." }]);
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash", // PERBAIKAN: Menggunakan model standard
         contents: [...chatHistory, userMsg].map(m => ({ role: m.role, parts: [{ text: m.text }] })),
-        config: { systemInstruction: "You are Kelar.in AI, a helpful and cool student productivity assistant. You love candy colors and being positive. Keep answers concise!" }
+        config: { systemInstruction: "You are Kelar.in AI, a helpful and cool student productivity assistant. You love candy colors and being positive. Keep answers concise! avoid using ** and *" }
       });
       setChatHistory(prev => [...prev, { role: 'model', text: response.text || "Oops, my candy brain froze!" }]);
     } catch (error) {
       console.error("Chat failed:", error);
+      setChatHistory(prev => [...prev, { role: 'model', text: "Maaf, terjadi kesalahan saat menyambung ke AI. Coba cek console." }]);
     } finally {
       setIsChatLoading(false);
     }
@@ -355,7 +364,16 @@ export default function App() {
     setUserAnswers([]);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      // PERBAIKAN: Menggunakan import.meta.env untuk Vite
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        alert("API Key Gemini belum diatur. Silakan tambahkan VITE_GEMINI_API_KEY di file .env");
+        setIsQuizLoading(false);
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       
       let contents: any;
       if (uploadedImage) {
@@ -377,7 +395,7 @@ export default function App() {
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash", // PERBAIKAN: Menggunakan model standard
         contents,
         config: { 
           responseMimeType: "application/json",
@@ -389,6 +407,7 @@ export default function App() {
       setQuizQuestions(questions);
     } catch (error) {
       console.error("Quiz generation failed:", error);
+      alert("Gagal membuat kuis. Cek koneksi atau kuota API Gemini kamu.");
     } finally {
       setIsQuizLoading(false);
     }
@@ -456,7 +475,6 @@ export default function App() {
       };
       reader.readAsArrayBuffer(file);
     } else {
-      // Default to text
       const reader = new FileReader();
       reader.onload = (event) => {
         setStudyMaterial(event.target?.result as string);
