@@ -103,14 +103,12 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, color = "text-candy-p
 );
 
 const Logo = ({ className = "w-10 h-10" }: { className?: string }) => (
-  <div className={`relative ${className} flex items-center justify-center bg-candy-yellow rounded-full shadow-md border-2 border-white/40 overflow-hidden`}>
-    <div className="absolute inset-[8%] bg-white rounded-full flex items-center justify-center">
-      <div className="relative w-full h-full flex items-center justify-center">
-        {[...Array(12)].map((_, i) => <div key={i} className="absolute w-0.5 h-1.5 bg-slate-200" style={{ transform: `rotate(${i * 30}deg) translateY(-220%)` }} />)}
-        <div className="absolute w-1.5 h-[60%] bg-candy-pink rounded-full -translate-x-1.5 shadow-sm" />
-      </div>
-    </div>
-  </div>
+  <img
+    src="/assets/kelar.in%20logo-B_o5c9a2.png"
+    alt="KELAR.IN Logo"
+    className={`${className} object-contain`}
+    loading="lazy"
+  />
 );
 
 const LightSwitch = ({ isOn, onToggle }: { isOn: boolean, onToggle: () => void }) => (
